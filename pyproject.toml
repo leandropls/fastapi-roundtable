@@ -1,0 +1,72 @@
+[project]
+name = "fastapi-roundtable"
+version = "0.1.0"
+description = "Invisible bot protection for FastAPI applications using Roundtable.ai Proof-of-Human detection"
+authors = [
+    {name = "Leandro Lima", email = "leandro@lls-software.com"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+keywords = [
+    "fastapi",
+    "bot-detection",
+    "security",
+    "roundtable",
+    "proof-of-human",
+    "spam-prevention",
+    "api-protection",
+    "session-validation",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Framework :: FastAPI",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Security",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = [
+    "fastapi>=0.100.0",
+    "aiohttp>=3.12.14",
+    "pydantic>=2.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/leandropls/fastapi-roundtable"
+Repository = "https://github.com/leandropls/fastapi-roundtable"
+Documentation = "https://github.com/leandropls/fastapi-roundtable#readme"
+Issues = "https://github.com/leandropls/fastapi-roundtable/issues"
+"Roundtable.ai" = "https://roundtable.ai"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.18.2"
+
+[tool.poetry.group.speedups.dependencies]
+aiohttp = {extras = ["speedups"], version = "^3.13.2"}
+
+[tool.isort]
+profile = "black"
+
+[tool.black]
+line-length = 100
+
+[tool.mypy]
+follow_imports = 'silent'
+exclude = [
+    '\.pyi$',
+]
+follow_untyped_imports = true
+check_untyped_defs = true
