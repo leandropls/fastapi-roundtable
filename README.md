@@ -47,6 +47,7 @@ legitimate users never see a CAPTCHA or challenge.
 
 - **Async session validation** using aiohttp for high performance
 - **Multiple session ID sources** - extract from form fields, HTTP headers, or request body
+- **Action-based validation** - wait for specific user actions to ensure data freshness
 - **Configurable risk thresholds** - set your own acceptable risk level
 - **Type-safe** - full type hints throughout
 - **Environment variable support** - secure API key management
@@ -229,6 +230,74 @@ async def signup(): ...
 async def api_data(): ...
 ```
 
+### Ensuring Data Freshness with Validation Timeout
+
+Frontend behavioral data and backend API requests are processed through independent channels. When a
+user submits a form, the frontend tracker logs the action while the form data is sent to your
+backend simultaneously. To ensure the risk assessment includes the most recent user activity, this
+library waits a configurable amount of time before validating the session.
+
+**What `session_validation_timeout` does:**
+
+- **Without `require_action`**: Waits for the specified timeout duration to give Roundtable time to
+  process recent frontend events, then validates using the risk score. This is the most common
+  usage pattern.
+
+- **With `require_action`**: Waits for a specific action to appear in the session logs. If the
+  action appears within the timeout period, validates using the risk score. If the timeout is 
+  reached without finding the action, the request is **blocked** (rejected with the configured
+  status code).
+
+**Basic Example (waiting for data to settle):**
+
+```python
+@app.post(
+    "/contact",
+    dependencies=[
+        Depends(
+            roundtable(
+                form_field="rt_session_id",
+                session_validation_timeout=5  # Wait 5 seconds for recent events to process
+            )
+        )
+    ]
+)
+async def contact_form():
+    return {"message": "Thank you!"}
+```
+
+**Advanced Example (requiring specific action):**
+
+```python
+@app.post(
+    "/contact",
+    dependencies=[
+        Depends(
+            roundtable(
+                form_field="rt_session_id",
+                require_action="User submitted contactForm",  # Must see this action
+                session_validation_timeout=30  # Wait up to 30 seconds for it
+            )
+        )
+    ]
+)
+async def contact_form():
+    return {"message": "Thank you!"}
+```
+
+**Parameters:**
+- `session_validation_timeout` (default: 30 seconds): Time to wait before validating the session.
+  Always applied.
+- `require_action` (optional): Specific action name that must appear in session logs. If specified
+  and not found within timeout, the request is blocked.
+
+**When to use:**
+- **Without `require_action`**: Most common usage - allows time for recent events to be processed
+- **With `require_action`**: When you want to validate that a specific user action occurred (e.g.,
+  form submission, button click)
+- **Shorter timeouts (5-10s)**: For better user experience when you expect fast event processing
+- **Longer timeouts (30-60s)**: When you need to ensure even slower events are captured
+
 ## Configuration
 
 ### Environment Variables
@@ -319,16 +388,33 @@ class Roundtable:
         """Initialize a session validator with Roundtable.ai API credentials."""
 ```
 
-#### `__call__(*, form_field: str | None = None, http_header: str | None = None, body_field: str | None = None)`
+#### `__call__(*, form_field: str | None = None, http_header: str | None = None, body_field: str | None = None, require_action: str | None = None, session_validation_timeout: float = 30)`
 
-Creates a FastAPI dependency for session validation. Exactly one parameter must be provided.
+Creates a FastAPI dependency for session validation. Exactly one of `form_field`, `http_header`, or
+`body_field` must be provided.
+
+**Parameters:**
+- `form_field`: Name of the form field containing the session ID
+- `http_header`: Name of the HTTP header containing the session ID
+- `body_field`: Name of the request body field containing the session ID
+- `session_validation_timeout` (default: 30): Seconds to wait before validating the session.
+  Always applied.
+- `require_action` (optional): Action name that must appear in session logs. If not found within
+  timeout, request is blocked.
 
 **Returns:** An async dependency function compatible with `Depends()`
 
 **Example:**
 ```python
-# Validate from form field
+# Basic validation from form field
 Depends(roundtable(form_field="rt_session_id"))
+
+# Wait for specific action before validating
+Depends(roundtable(
+    form_field="rt_session_id",
+    require_action="User submitted contactForm",
+    session_validation_timeout=30
+))
 
 # Validate from HTTP header
 Depends(roundtable(http_header="X-Session-ID"))
@@ -337,9 +423,9 @@ Depends(roundtable(http_header="X-Session-ID"))
 Depends(roundtable(body_field="sessionId"))
 ```
 
-#### `async validate_session(session_id: str) -> None`
+#### `async validate_session(session_id: str, require_action: str | None = None, session_validation_timeout: float = 60) -> None`
 
-Validates a session ID against the Roundtable.ai API. Raises `HTTPException` if validation fails.
+Validates a session ID against the Roundtable.ai API. Raises `HTTPException` if validation fails or timeout is reached without finding the required action.
 
 For advanced usage and full API documentation, see the [source code](https://github.com/leandropls/fastapi-roundtable).
 
